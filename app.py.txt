@@ -1,0 +1,100 @@
+import streamlit as st
+import numpy as np
+import cv2
+from tensorflow.keras.models import load_model
+from PIL import Image
+import tempfile
+
+# Load model
+model = load_model('camera_model.keras')
+categories = ['Normal', 'Blur', 'Blank']
+
+st.title("📷 Camera Feed Quality Detection")
+
+# Choose input type
+option = st.radio("Select Input Type:", ["Upload Image", "Upload Video"])
+
+# ─── IMAGE ───
+if option == "Upload Image":
+    uploaded_file = st.file_uploader("Choose an image...", 
+                                      type=['jpg', 'jpeg', 'png'])
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        st.image(image, caption='Uploaded Image', width=300)
+        
+        img = np.array(image)
+        img = cv2.resize(img, (224, 224))
+        img_input = np.expand_dims(img, axis=0) / 255.0
+        
+        prediction = model.predict(img_input)
+        predicted_class = categories[np.argmax(prediction)]
+        confidence = np.max(prediction) * 100
+        
+        st.subheader("Result:")
+        if predicted_class == 'Normal':
+            st.success(f"✅ {predicted_class} — Confidence: {confidence:.2f}%")
+        else:
+            st.error(f"⚠️ {predicted_class} Detected — Confidence: {confidence:.2f}%")
+
+# ─── VIDEO ───
+elif option == "Upload Video":
+    uploaded_video = st.file_uploader("Choose a video...", 
+                                       type=['mp4', 'avi', 'mov'])
+    if uploaded_video is not None:
+        # Save video temporarily
+        tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+        tfile.write(uploaded_video.read())
+        
+        st.video(uploaded_video)
+        
+        if st.button("Analyze Video"):
+            cap = cv2.VideoCapture(tfile.name)
+            
+            frame_count = 0
+            predictions = []
+            
+            progress = st.progress(0)
+            status_text = st.empty()
+            
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Analyze every 10th frame
+                if frame_count % 10 == 0:
+                    img = cv2.resize(frame, (224, 224))
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    img_input = np.expand_dims(img, axis=0) / 255.0
+                    
+                    prediction = model.predict(img_input, verbose=0)
+                    predicted_class = categories[np.argmax(prediction)]
+                    predictions.append(predicted_class)
+                    
+                    # Update progress
+                    progress.progress(min(frame_count / total_frames, 1.0))
+                    status_text.text(f"Analyzing frame {frame_count}...")
+                
+                frame_count += 1
+            
+            cap.release()
+            
+            # Show final result
+            st.subheader("Video Analysis Result:")
+            
+            from collections import Counter
+            most_common = Counter(predictions).most_common(1)[0][0]
+            
+            if most_common == 'Normal':
+                st.success(f"✅ Video is Normal")
+            else:
+                st.error(f"⚠️ {most_common} Detected in Video!")
+            
+            # Show breakdown
+            st.subheader("Frame by Frame Breakdown:")
+            for category in categories:
+                count = predictions.count(category)
+                percentage = (count / len(predictions)) * 100
+                st.write(f"{category}: {count} frames ({percentage:.1f}%)")
