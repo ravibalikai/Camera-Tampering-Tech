@@ -26,7 +26,7 @@ if option == "Upload Image":
     uploaded_file = st.file_uploader("Choose an image...",
                                       type=['jpg', 'jpeg', 'png'])
     if uploaded_file is not None:
-        image = Image.open(uploaded_file)
+        mage = Image.open(uploaded_file).convert("RGB")
         st.image(image, caption='Uploaded Image', width=300)
 
         img = np.array(image)
