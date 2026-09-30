@@ -59,13 +59,11 @@ The system also uses a **10-second confirmation period** before generating a tam
 - Streamlit
 ## 📂 Project Structure
 
-```text
 Camera-Tampering-Tech/
 │
-├── app.py
-├── major.ipynb
-├── requirements.txt
-└── README.md
-├── major.ipynb
-├── requirements.txt
-└── README.md
+├── app.py                    # Streamlit application
+├── camera_model_v2.keras     # Trained CNN model
+├── major.ipynb               # Model training and analysis notebook
+├── requirements.txt          # Python dependencies
+├── README.md                 # Project documentation
+└── .gitignore                # Files excluded from Git
